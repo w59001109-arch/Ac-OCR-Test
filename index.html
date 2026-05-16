@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>OCR / Mano-P 測試工具</title>
+  <style>
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f6f8fb}
+    body{margin:0;padding:20px;max-width:880px;margin-inline:auto}
+    .card{background:#fff;border:1px solid #dfe5ef;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(20,35,60,.06);margin:14px 0}
+    h1{font-size:24px;margin:8px 0 4px}.muted{color:#667085;font-size:14px}label{display:block;font-weight:700;margin:14px 0 6px}
+    input,select,textarea,button{font:inherit;border-radius:12px;border:1px solid #cbd5e1;padding:11px;width:100%;box-sizing:border-box}
+    button{background:#2563eb;color:#fff;border:0;font-weight:800;margin-top:14px}button:disabled{opacity:.5}
+    img{max-width:100%;border-radius:14px;border:1px solid #e5e7eb;margin-top:10px}pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:14px;padding:14px;overflow:auto}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pill{display:inline-block;background:#eef2ff;color:#3730a3;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    @media(max-width:640px){.row{grid-template-columns:1fr}body{padding:12px}}
+  </style>
+</head>
+<body>
+  <h1>OCR / Mano-P 測試工具</h1>
+  <div class="muted">獨立測試用，不會動到原本 Ac- 小工具。</div>
+
+  <div class="card">
+    <span class="pill">Sandbox</span>
+    <label>OCR Server Endpoint</label>
+    <input id="endpoint" value="https://camac-mini-1.tail766252.ts.net/ocr" />
+    <div class="row">
+      <div><label>引擎</label><select id="engine"><option value="minimax">MiniMax</option><option value="mano">Mano-P</option><option value="compare">Compare</option></select></div>
+      <div><label>目標</label><select id="target"><option value="bs">BS 篩析表</option><option value="raw">Raw OCR</option></select></div>
+    </div>
+    <label>拍照 / 上傳圖片</label>
+    <input id="file" type="file" accept="image/*" capture="environment" />
+    <img id="preview" hidden />
+    <button id="run" disabled>送出測試</button>
+  </div>
+
+  <div class="card">
+    <h2>結果</h2>
+    <pre id="out">尚未測試</pre>
+  </div>
+
+<script>
+const $=id=>document.getElementById(id);
+let imageData=null;
+$('file').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  imageData=await fileToDataUrl(f);
+  $('preview').src=imageData; $('preview').hidden=false; $('run').disabled=false;
+});
+function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});}
+$('run').addEventListener('click', async()=>{
+  const body={image:imageData,target:$('target').value,engine:$('engine').value,meshes:['35','40','60','80','100','140','200','盤底']};
+  $('run').disabled=true; $('out').textContent='辨識中...';
+  try{
+    const resp=await fetch($('endpoint').value,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const text=await resp.text();
+    let data; try{data=JSON.parse(text)}catch{data={raw:text}}
+    $('out').textContent=JSON.stringify({status:resp.status, ok:resp.ok, data},null,2);
+  }catch(err){$('out').textContent='ERROR: '+(err&&err.stack||err);}
+  finally{$('run').disabled=false;}
+});
+</script>
+</body>
+</html>
